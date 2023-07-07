@@ -111,4 +111,4 @@ async def send_sol(message):
                                                                                      'сообщение, которое отправил бот.')
 
 
-asyncio.run(bot.polling())
+asyncio.run(bot.polling())   
