@@ -10,6 +10,12 @@ TOKEN = os.getenv('TOKEN')
 bot = AsyncTeleBot(TOKEN, parse_mode='HTML')
 
 
+def generate_markup2(buttons, n):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    markup.add(*buttons, row_width=n)
+    return markup
+
+
 def generate_markup(buttons):
     markup = InlineKeyboardMarkup()
     for el1, el2 in buttons.items():
@@ -52,9 +58,9 @@ def get_solution(question):
 @bot.message_handler(commands=['start'])
 async def send_hello(message):
     user_id = message.from_user.id
-    markup = generate_markup({"решение": 'sol', "помощь": 'help'})
-
-    await bot.send_message(user_id, "Добро пожаловать!\nЯ бот, помогающий решать математические задачи.\nВыберите дальнейшую команду:\n", reply_markup=markup)
+    markup = generate_markup({"Помощь": 'help', "Уравнение": 'sol', "Пример": 'task'})
+    await bot.send_message(user_id, "Добро пожаловать!\nЯ бот, помогающий решать математические задачи.\nВыберите "
+                                    "дальнейшую команду:\n", reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -62,27 +68,47 @@ async def handle_callback(call):
     chat_id = call.message.chat.id
     button_call = call.data
     if button_call == 'help':
-        sign_list = ['+ сложение', '- вычетание', '* умнoжение', '/ деление', '^ возведение в степень', '% деление с остатком',]
+        sign_list = ['+ сложение', '- вычетание', '* умнoжение', '/ деление', '// деление нацело(только в примерах)', '** возведение в степень(только в примерах)', '^ возведение в степень(только в уравнениях)', '% деление с остатком', '√ корень', '= равно']
         await bot.send_message(chat_id, f"Знаки:\n" + '\n'.join(sign_list))
     if button_call == 'sol':
-        await bot.send_message(chat_id, 'введите уравнение')
+        await bot.send_message(chat_id, 'Введите уравнение')
+    if button_call == 'task':
+        await bot.send_message(chat_id, 'Введите пример')
 
 
-@bot.message_handler(func=lambda message: True)
+@bot.message_handler(content_types=['text'])
 async def send_sol(message):
-    oper = ['=', '-', '%', '+', '/', '^', '*']
+    oper = ['=', '-', '%', '+', '/', '^', '*', '√']
     chat_id = message.chat.id
-    if any(map(str.isdigit, message.text)) and any(map(lambda x: x in oper, message.text)):
-        res = get_solution(message.text)
-        if res is not None:
-            await bot.send_message(chat_id, res)
+    print(message)
+    if message.reply_to_message is not None:
+        if message.reply_to_message.text == 'Введите уравнение':
+            if any(map(str.isdigit, message.text)) and any(map(lambda x: x.lower() == 'x', message.text)):
+                res = get_solution(message.text)
+                if res is not None:
+                    await bot.send_message(chat_id, res)
+                else:
+                    await bot.send_message(chat_id, "Решения нет.")
+            else:
+                await bot.send_message(chat_id, "Это не уравнение")
         else:
-            await bot.send_message(chat_id, "Решения нет.")
+            if any(map(str.isdigit, message.text)) and any(map(lambda x: x in oper, message.text)):
+                if '√' in message.text:
+                    await bot.send_message(chat_id, int(message.text[1]) ** 0.5)
+                else:
+                    await bot.send_message(chat_id, eval(message.text))
+            else:
+                await bot.send_message(chat_id, 'Это не пример')
+        markup = generate_markup2(['да', 'нет'], 2)
+        await bot.send_message(chat_id, 'Хотите вернутся в начало?', reply_markup=markup)
     else:
-        await bot.send_message(chat_id, "Это не пример")
-
+        if message.text == 'да':
+            await send_hello(message)
+        elif message.text == 'нет':
+            pass
+        else:
+            await bot.send_photo(chat_id, open('photo_5273788290220280301_y.jpg', 'rb'), 'Ответьте на '
+                                                                                     'сообщение, которое отправил бот.')
 
 
 asyncio.run(bot.polling())
-
-
